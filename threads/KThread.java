@@ -202,6 +202,12 @@ public class KThread {
 		toBeDestroyed = currentThread;
 
 		currentThread.status = statusFinished;
+		
+		/** Added Jan 30 Wang*/
+		if(prevWaitingThread != null) {
+			prevWaitingThread.ready();
+			prevWaitingThread = null;
+		}
 
 		sleep();
 	}
@@ -279,14 +285,31 @@ public class KThread {
 	 * Waits for this thread to finish. If this thread is already finished,
 	 * return immediately. This method must only be called once; the second call
 	 * is not guaranteed to return. This thread must not be the current thread.
-	 */
+	 *
+	 * Modified Jan 30 by Kody*/
 	public void join() {
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
-
+		
 		Lib.assertTrue(this != currentThread);
-
+		
+		boolean prevIntrptStatus = Machine.interrupt().disable();
+		if(this.status == statusFinished) {
+			Machine.interrupt().restore(prevIntrptStatus);
+			return;
+		}
+		prevWaitingThread = currentThread;
+		
+		prevWaitingThread.sleep();
+		/** To get rid of the warning, replace with codes below:*/
+		if (prevWaitingThread.status != statusFinished)
+			prevWaitingThread.status = statusBlocked;
+		runNextThread();
+		
+		Machine.interrupt().restore(prevIntrptStatus);
 	}
 
+//	KThread T1;
+//	T1.join();
 	/**
 	 * Create the idle thread. Whenever there are no threads ready to be run,
 	 * and <tt>runNextThread()</tt> is called, it will run the idle thread. The
@@ -461,6 +484,10 @@ public class KThread {
 	private static ThreadQueue readyQueue = null;
 
 	private static KThread currentThread = null;
+	
+	/** Number of times the KThread constructor was called.
+	 	Added Jan 30 by Kody */
+	private static KThread prevWaitingThread = null;
 
 	private static KThread toBeDestroyed = null;
 
