@@ -1,5 +1,7 @@
 package nachos.threads;
 
+import java.util.LinkedList;
+
 import nachos.machine.*;
 
 /**
@@ -21,6 +23,7 @@ public class Condition2 {
 	 */
 	public Condition2(Lock conditionLock) {
 		this.conditionLock = conditionLock;
+		waitQueue = ThreadedKernel.scheduler.newThreadQueue(false);
 	}
 
 	/**
@@ -31,10 +34,18 @@ public class Condition2 {
 	 */
 	public void sleep() {
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
-
+		
+		boolean intStatus = Machine.interrupt().disable();
+		
 		conditionLock.release();
-
+		
+		waitQueue.waitForAccess(KThread.currentThread());
+		
+		KThread.sleep();
+		
 		conditionLock.acquire();
+		
+		Machine.interrupt().restore(intStatus);
 	}
 
 	/**
@@ -43,6 +54,11 @@ public class Condition2 {
 	 */
 	public void wake() {
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+		boolean intStatus = Machine.interrupt().disable();
+		KThread nextToGo = waitQueue.nextThread();
+		if(nextToGo != null)
+			nextToGo.ready();
+		Machine.interrupt().restore(intStatus);
 	}
 
 	/**
@@ -51,7 +67,17 @@ public class Condition2 {
 	 */
 	public void wakeAll() {
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+		boolean intStatus = Machine.interrupt().disable();
+		//No isEmpty() interface for ThreadQueue. Of course we can do some cast or add some codes. 
+		//However not necessarily now.
+		KThread threadToWake = waitQueue.nextThread();
+		while(threadToWake != null) {
+			threadToWake.ready();
+			threadToWake = waitQueue.nextThread();
+		}
+		Machine.interrupt().restore(intStatus);
 	}
 
 	private Lock conditionLock;
+	private ThreadQueue waitQueue;
 }
