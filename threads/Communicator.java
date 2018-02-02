@@ -14,6 +14,11 @@ public class Communicator {
 	 * Allocate a new communicator.
 	 */
 	public Communicator() {
+		mutex = new Lock();
+		speaker = new Condition2(mutex);
+		listener = new Condition2(mutex);
+		waiting = new Condition2(mutex);
+		buff = null;
 	}
 
 	/**
@@ -27,6 +32,15 @@ public class Communicator {
 	 * @param word the integer to transfer.
 	 */
 	public void speak(int word) {
+		mutex.acquire();
+		
+		while(buff!=null){
+			speaker.sleep();
+		}
+		buff=word;
+		listener.wake();
+		waiting.sleep();
+		mutex.release();
 	}
 
 	/**
@@ -36,6 +50,21 @@ public class Communicator {
 	 * @return the integer transferred.
 	 */
 	public int listen() {
-		return 0;
+		mutex.acquire();
+		while(buff == null) {
+			listener.sleep();
+		}
+		int res = buff.intValue();
+		buff = null;
+		/* wake order doesn't matter (?) */
+		waiting.wake();
+		speaker.wake();
+		mutex.release();
+		return res;
 	}
+	private Condition2 speaker;
+	private Condition2 listener;
+	private Condition2 waiting;
+	private Lock mutex;
+	private Integer buff;
 }

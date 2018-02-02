@@ -1,3 +1,4 @@
+
 package nachos.threads;
 
 import nachos.machine.*;
@@ -22,6 +23,7 @@ public class ThreadedKernel extends Kernel {
 		String schedulerName = Config.getString("ThreadedKernel.scheduler");
 		scheduler = (Scheduler) Lib.constructObject(schedulerName);
 
+		//System.out.println(schedulerName);
 		// set fileSystem
 		String fileSystemName = Config.getString("ThreadedKernel.fileSystem");
 		if (fileSystemName != null)
@@ -46,6 +48,7 @@ public class ThreadedKernel extends Kernel {
 	 * here.
 	 */
 	public void selfTest() {
+		
 		KThread.selfTest();
 		Semaphore.selfTest();
 		SynchList.selfTest();

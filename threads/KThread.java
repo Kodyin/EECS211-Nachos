@@ -299,11 +299,11 @@ public class KThread {
 		}
 		prevWaitingThread = currentThread;
 		
-		prevWaitingThread.sleep();
-		/** To get rid of the warning, replace with codes below:*/
-		if (prevWaitingThread.status != statusFinished)
-			prevWaitingThread.status = statusBlocked;
-		runNextThread();
+		sleep();
+		/** To get rid of the warning, replace with codes below, (No need now):*/
+		// if (prevWaitingThread.status != statusFinished)
+		// 	prevWaitingThread.status = statusBlocked;
+		// runNextThread();
 		
 		Machine.interrupt().restore(prevIntrptStatus);
 	}
