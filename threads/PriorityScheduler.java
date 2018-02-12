@@ -1,4 +1,4 @@
-package nachos.threads;
+ package nachos.threads;
 
 import nachos.machine.*;
 
@@ -169,9 +169,8 @@ public class PriorityScheduler extends Scheduler {
 		 * 
 		 * @return the next thread that <tt>nextThread()</tt> would return.
 		 */
-		protected ThreadState pickNextThread() {
+    protected ThreadState pickNextThread() {
 			// implement me
-			if (!waitQueue.isEmpty()){
 				int priorityTemp = -1;
 				KThread nextThread = null;
 				for (KThread thread : waitQueue){
@@ -182,16 +181,19 @@ public class PriorityScheduler extends Scheduler {
 					if (priorityTemp == priorityMaximum)
 						break;
 				}
+				if (nextThread == null)
+					return null;
 				return getThreadState(nextThread);
-			}
-			else
-				return null;
 		}
 
 		public void print() {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			// implement me (if you want)
 		}
+		
+		 public  boolean empty() {
+	          return (this.waitQueue.size() == 0);
+	     }
 
 		/**
 		 * <tt>true</tt> if this queue should transfer priority from waiting
