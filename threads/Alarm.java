@@ -98,7 +98,7 @@ public class Alarm {
 
 
 		System.out.println("*** Exiting Alarm self test");
-		}
+	}
 		
 
 }
