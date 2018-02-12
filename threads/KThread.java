@@ -202,6 +202,12 @@ public class KThread {
 		toBeDestroyed = currentThread;
 
 		currentThread.status = statusFinished;
+		
+		/** Added Jan 30 Wang*/
+		if(prevWaitingThread != null) {
+			prevWaitingThread.ready();
+			prevWaitingThread = null;
+		}
 
 		sleep();
 	}
@@ -279,14 +285,31 @@ public class KThread {
 	 * Waits for this thread to finish. If this thread is already finished,
 	 * return immediately. This method must only be called once; the second call
 	 * is not guaranteed to return. This thread must not be the current thread.
-	 */
+	 *
+	 * Modified Jan 30 by Kody*/
 	public void join() {
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
-
+		
 		Lib.assertTrue(this != currentThread);
-
+		
+		boolean prevIntrptStatus = Machine.interrupt().disable();
+		if(this.status == statusFinished) {
+			Machine.interrupt().restore(prevIntrptStatus);
+			return;
+		}
+		prevWaitingThread = currentThread;
+		
+		sleep();
+		/** To get rid of the warning, replace with codes below:*/
+//		if (prevWaitingThread.status != statusFinished)
+//			prevWaitingThread.status = statusBlocked;
+//		runNextThread();
+		
+		Machine.interrupt().restore(prevIntrptStatus);
 	}
 
+//	KThread T1;
+//	T1.join();
 	/**
 	 * Create the idle thread. Whenever there are no threads ready to be run,
 	 * and <tt>runNextThread()</tt> is called, it will run the idle thread. The
@@ -406,16 +429,29 @@ public class KThread {
 
 		private int which;
 	}
+	
+	
 
 	/**
 	 * Tests whether this module is working.
 	 */
-	public static void selfTest() {
-		Lib.debug(dbgThread, "Enter KThread.selfTest");
+	 public static void selfTest() {
+			Lib.debug(dbgThread, "Enter KThread.selfTest");
+			
+			KThread thread1 = new KThread(new PingTest(2)).setName("forked thread 1");
+			KThread thread2 = new KThread(new PingTest(3)).setName("forked thread 2");
+			thread1.fork();
+			thread2.fork();
+			//fork two threads, and call join on one of them
+			System.out.println("Start Join");
+			thread1.join();
+			System.out.println("Join Complete");
+			//so it shouldn't run until the other one completes
+			new PingTest(4).run();
 
-		new KThread(new PingTest(1)).setName("forked thread").fork();
-		new PingTest(0).run();
-	}
+			System.out.println("******************");
+			Lib.debug(dbgThread, "End KThread.selfTest");
+	 }
 
 	private static final char dbgThread = 't';
 
@@ -461,6 +497,10 @@ public class KThread {
 	private static ThreadQueue readyQueue = null;
 
 	private static KThread currentThread = null;
+	
+	/** Number of times the KThread constructor was called.
+	 	Added Jan 30 by Kody */
+	private static KThread prevWaitingThread = null;
 
 	private static KThread toBeDestroyed = null;
 

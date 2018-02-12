@@ -160,14 +160,16 @@ public class PriorityScheduler extends Scheduler {
 			else 
 				return null;
 		}
-
+		public  boolean empty() {
+	          return (this.waitQueue.size() == 0);
+	    }
 		/**
 		 * Return the next thread that <tt>nextThread()</tt> would return,
 		 * without modifying the state of this queue.
 		 * 
 		 * @return the next thread that <tt>nextThread()</tt> would return.
 		 */
-		protected ThreadState pickNextThread() {
+    protected ThreadState pickNextThread() {
 			// implement me
 				int priorityTemp = -1;
 				KThread nextThread = null;
