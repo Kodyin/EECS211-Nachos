@@ -1,4 +1,4 @@
-package nachos.threads;
+ package nachos.threads;
 
 import nachos.machine.*;
 
@@ -246,7 +246,7 @@ public class PriorityScheduler extends Scheduler {
 	        for(PriorityQueue q : this.ownedResources) {
 	            // Only transfer priority if this queue allows priority to be transferred
 	            if(q.transferPriority && !q.empty()) {
-	              if(effectivePriority > q.pickNextThread().getEffectivePriority()) {
+	              if(effectivePriority < q.pickNextThread().getEffectivePriority()) {
 	                effectivePriority = q.pickNextThread().getEffectivePriority();
 	              }
 	            }
