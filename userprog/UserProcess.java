@@ -5,7 +5,6 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
-import java.util.LinkedList;
 
 /**
  * Encapsulates the state of a user process that is not contained in its user
@@ -32,7 +31,7 @@ public class UserProcess {
         
         fileTable = new OpenFile[16];
         
-	children = new LinkedList<>();
+	    children = new LinkedList<>();
         boolean inStatus=Machine.interrupt().disable();
         processIDSem.P();
         PID = counter++;
@@ -711,4 +710,3 @@ public class UserProcess {
     
     protected OpenFile[] fileTable;
 }
-
