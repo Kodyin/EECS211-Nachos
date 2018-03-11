@@ -359,7 +359,8 @@ public class UserProcess {
             for (int i = 0; i < section.getLength(); i++) {
                 int vpn = section.getFirstVPN() + i;
                 pageTable[vpn].readOnly=section.isReadOnly();//read-only
-                
+                if (pageTable[vpn].ppn <  0 || pageTable[vpn].ppn > Machine.processor().getNumPhysPages())
+                   return false;
                 section.loadPage(i, pageTable[vpn].ppn);//physical memory page number
             }
         }
