@@ -4,6 +4,7 @@ import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
 
+import java.util.LinkedList;
 import java.io.EOFException;
 
 /**
@@ -31,7 +32,7 @@ public class UserProcess {
         
         fileTable = new OpenFile[16];
         
-	    children = new LinkedList<>();
+	children = new LinkedList<>();
         boolean inStatus=Machine.interrupt().disable();
         processIDSem.P();
         PID = counter++;
@@ -358,7 +359,8 @@ public class UserProcess {
             for (int i = 0; i < section.getLength(); i++) {
                 int vpn = section.getFirstVPN() + i;
                 pageTable[vpn].readOnly=section.isReadOnly();//read-only
-                
+                if (pageTable[vpn].ppn <  0 || pageTable[vpn].ppn > Machine.processor().getNumPhysPages())
+                   return false;
                 section.loadPage(i, pageTable[vpn].ppn);//physical memory page number
             }
         }
@@ -518,19 +520,17 @@ public class UserProcess {
             fileTable[i].close();
             fileTable[i]=null;
         }
-        while (children != null && !children.isEmpty())  {
-            UserProcess child = children.removeFirst();
-            child.PProcess = null; ////
-        }
         this.status = exitStatus;
         normalExit=true;
         if(PProcess!=null){
-            PProcess.children.remove(this);
+            joinSem.V();
+	    PProcess.children.remove(this);
         }
         unloadSections();
         if(PID == 0)
             Kernel.kernel.terminate();
-        UThread.finish();
+	else
+            KThread.currentThread().finish();
         Lib.assertNotReached();
     }
     private int handleJoin(int pid, int address) {
@@ -540,8 +540,8 @@ public class UserProcess {
             break;
         }
         if (process == null) return -1;
-        process.thread.join();
-        byte[] childstat = new byte[4];
+        process.joinSem.P();
+	byte[] childstat = new byte[4];
         childstat=Lib.bytesFromInt(process.status);
         int numWriteByte=writeVirtualMemory(address,childstat);
         if(process.normalExit&&numWriteByte==4)
@@ -708,5 +708,7 @@ public class UserProcess {
     
     private UThread thread;
     
+    private Semaphore joinSem = new Semaphore(0);
+		  
     protected OpenFile[] fileTable;
 }
