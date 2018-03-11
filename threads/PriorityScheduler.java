@@ -1,10 +1,11 @@
-package nachos.threads;
+ package nachos.threads;
 
 import nachos.machine.*;
 
 import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 
 /**
  * A scheduler that chooses threads based on their priorities.
@@ -146,30 +147,61 @@ public class PriorityScheduler extends Scheduler {
 		public KThread nextThread() {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			// implement me
-			return null;
+			if(currentOwner != null) {
+	              getThreadState(currentOwner).ownedResources.remove(this);
+	        }
+			
+			ThreadState threadState = pickNextThread();
+			if (threadState != null){
+				threadState.acquire(this);
+				currentOwner = threadState.thread;
+				return currentOwner;
+			}
+			else 
+				return null;
 		}
-
 		/**
 		 * Return the next thread that <tt>nextThread()</tt> would return,
 		 * without modifying the state of this queue.
 		 * 
 		 * @return the next thread that <tt>nextThread()</tt> would return.
 		 */
-		protected ThreadState pickNextThread() {
+    protected ThreadState pickNextThread() {
 			// implement me
-			return null;
+				int priorityTemp = -1;
+				KThread nextThread = null;
+				for (KThread thread : waitQueue){
+					if (getThreadState(thread).getEffectivePriority() > priorityTemp){
+						priorityTemp = getThreadState(thread).getEffectivePriority();
+						nextThread = thread;
+					}
+					if (priorityTemp == priorityMaximum)
+						break;
+				}
+				if (nextThread == null)
+					return null;
+				return getThreadState(nextThread);
 		}
 
 		public void print() {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			// implement me (if you want)
 		}
+		
+		 public  boolean empty() {
+	          return (this.waitQueue.size() == 0);
+	     }
 
 		/**
 		 * <tt>true</tt> if this queue should transfer priority from waiting
 		 * threads to the owning thread.
 		 */
 		public boolean transferPriority;
+		
+		private KThread currentOwner = null;
+		
+		LinkedList<KThread> waitQueue = new LinkedList<KThread>();
+
 	}
 
 	/**
@@ -188,7 +220,7 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public ThreadState(KThread thread) {
 			this.thread = thread;
-
+			this.ownedResources = new LinkedList<PriorityQueue>();
 			setPriority(priorityDefault);
 		}
 
@@ -208,7 +240,17 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public int getEffectivePriority() {
 			// implement me
-			return priority;
+			// Initialize effective priority to actual priority
+	        int effectivePriority = this.priority;
+	        for(PriorityQueue q : this.ownedResources) {
+	            // Only transfer priority if this queue allows priority to be transferred
+	            if(q.transferPriority && !q.empty()) {
+	              if(effectivePriority < q.pickNextThread().getEffectivePriority()) {
+	                effectivePriority = q.pickNextThread().getEffectivePriority();
+	              }
+	            }
+	          }
+	          return effectivePriority;
 		}
 
 		/**
@@ -239,6 +281,8 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public void waitForAccess(PriorityQueue waitQueue) {
 			// implement me
+			Lib.assertTrue(Machine.interrupt().disabled());
+			waitQueue.waitQueue.add(thread);
 		}
 
 		/**
@@ -253,12 +297,90 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public void acquire(PriorityQueue waitQueue) {
 			// implement me
+			waitQueue.waitQueue.remove(thread);
+			getThreadState(thread).ownedResources.add(waitQueue);
+			waitQueue.currentOwner = thread;
+			
+			
 		}
-
+		
 		/** The thread with which this object is associated. */
 		protected KThread thread;
 
 		/** The priority of the associated thread. */
 		protected int priority;
+		
+		protected LinkedList<PriorityQueue> ownedResources;
+		
 	}
+	 private static class PingTest implements Runnable  
+	    {  
+	        Lock a=null,b=null;  
+	        int name;  
+	        PingTest(Lock A,Lock B,int x)  
+	        {  
+	            a=A;b=B;name=x;  
+	        }  
+	        public void run() {  
+	            System.out.println("Thread "+name+" starts.");  
+	            if(b!=null)  
+	            {  
+	                System.out.println("Thread "+name+" waits for Lock b.");  
+	                b.acquire();  
+	                System.out.println("Thread "+name+" gets Lock b.");  
+	            }  
+	            if(a!=null)  
+	            {  
+	                System.out.println("Thread "+name+" waits for Lock a.");  
+	                a.acquire();  
+	                System.out.println("Thread "+name+" gets Lock a.");  
+	            }  
+	            KThread.yield();  
+	            boolean intStatus = Machine.interrupt().disable();  
+	            System.out.println("Thread "+name+" has priority "+ThreadedKernel.scheduler.getEffectivePriority()+".");  
+	            Machine.interrupt().restore(intStatus);  
+	            KThread.yield();  
+	            if(b!=null) b.release();  
+	            if(a!=null) a.release();  
+	            System.out.println("Thread "+name+" finishs.");  
+	              
+	        }  
+	    }  
+	      
+	    public static void selfTest()  
+	    {  
+	        Lock a=new Lock();  
+	        Lock b=new Lock();  
+	          
+	        LinkedList<KThread> qq=new LinkedList<KThread>();  
+	        for(int i=1;i<=5;i++)  
+	        {  
+	            KThread kk=new KThread(new PingTest(null,null,i));  
+	            qq.add(kk);  
+	            kk.setName("Thread-"+i).fork();  
+	        }  
+	        for(int i=6;i<=10;i++)  
+	        {  
+	            KThread kk=new KThread(new PingTest(a,null,i));  
+	            qq.add(kk);  
+	            kk.setName("Thread-"+i).fork();  
+	        }  
+	        for(int i=11;i<=15;i++)  
+	        {  
+	            KThread kk=new KThread(new PingTest(a,b,i));  
+	            qq.add(kk);  
+	            kk.setName("Thread-"+i).fork();  
+	        }  
+	        KThread.yield();  
+	        Iterator it=qq.iterator();  
+	        int pp=0;  
+	        while(it.hasNext())  
+	        {  
+	            boolean intStatus = Machine.interrupt().disable();  
+	            ThreadedKernel.scheduler.setPriority((KThread)it.next(),pp+1);  
+	            Machine.interrupt().restore(intStatus);  
+	            pp=(pp+1)%6+1;  
+	        }  
+	    }  
+
 }

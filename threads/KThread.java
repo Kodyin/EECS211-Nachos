@@ -299,11 +299,11 @@ public class KThread {
 		}
 		prevWaitingThread = currentThread;
 		
-		prevWaitingThread.sleep();
+		sleep();
 		/** To get rid of the warning, replace with codes below:*/
-		if (prevWaitingThread.status != statusFinished)
-			prevWaitingThread.status = statusBlocked;
-		runNextThread();
+//		if (prevWaitingThread.status != statusFinished)
+//			prevWaitingThread.status = statusBlocked;
+//		runNextThread();
 		
 		Machine.interrupt().restore(prevIntrptStatus);
 	}
@@ -429,16 +429,29 @@ public class KThread {
 
 		private int which;
 	}
+	
+	
 
 	/**
 	 * Tests whether this module is working.
 	 */
-	public static void selfTest() {
-		Lib.debug(dbgThread, "Enter KThread.selfTest");
+	 public static void selfTest() {
+			Lib.debug(dbgThread, "Enter KThread.selfTest");
+			
+			KThread thread1 = new KThread(new PingTest(2)).setName("forked thread 1");
+			KThread thread2 = new KThread(new PingTest(3)).setName("forked thread 2");
+			thread1.fork();
+			thread2.fork();
+			//fork two threads, and call join on one of them
+			System.out.println("Start Join");
+			thread1.join();
+			System.out.println("Join Complete");
+			//so it shouldn't run until the other one completes
+			new PingTest(4).run();
 
-		new KThread(new PingTest(1)).setName("forked thread").fork();
-		new PingTest(0).run();
-	}
+			System.out.println("******************");
+			Lib.debug(dbgThread, "End KThread.selfTest");
+	 }
 
 	private static final char dbgThread = 't';
 

@@ -1,5 +1,7 @@
 package nachos.threads;
 
+import java.util.PriorityQueue;
+
 import nachos.machine.*;
 
 /**
@@ -20,6 +22,7 @@ public class Alarm {
 				timerInterrupt();
 			}
 		});
+		waitingPQ = new PriorityQueue<ThreadWake>();
 	}
 
 	/**
@@ -29,7 +32,14 @@ public class Alarm {
 	 * should be run.
 	 */
 	public void timerInterrupt() {
-		KThread.currentThread().yield();
+		boolean intStatus = Machine.interrupt().disable();
+    	
+	    	while (waitingPQ.peek() != null &&  Machine.timer().getTime() >= waitingPQ.peek().getWakeTime()) {
+	    		waitingPQ.poll().getThreadToWake().ready();
+	    	}
+    	
+    		Machine.interrupt().restore(intStatus);
+		KThread.yield();
 	}
 
 	/**
@@ -47,7 +57,48 @@ public class Alarm {
 	public void waitUntil(long x) {
 		// for now, cheat just to get something working (busy waiting is bad)
 		long wakeTime = Machine.timer().getTime() + x;
-		while (wakeTime > Machine.timer().getTime())
-			KThread.yield();
+		ThreadWake toAdd = new ThreadWake(KThread.currentThread(), wakeTime);
+		boolean intStatus = Machine.interrupt().disable();
+		waitingPQ.add(toAdd);
+		KThread.sleep();
+		Machine.interrupt().restore(intStatus);
 	}
+	private PriorityQueue<ThreadWake> waitingPQ;
+	
+	private static class PingAlarmTest implements Runnable {
+		PingAlarmTest(int which, Alarm alarm) {
+			this.which = which;
+			this.alarm = alarm;
+			
+		}
+		Alarm alarm;
+
+		public void run() {
+			System.out.println("thread " + which + " started.");
+			alarm.waitUntil(which);
+			System.out.println("Current Time: " + Machine.timer().getTime());
+			System.out.println("thread " + which + " ran.");
+			
+		}
+
+		private int which;
+	}
+	
+	public static void selfTest() {
+		Alarm myAlarm = new Alarm();
+
+		System.out.println("*** Entering Alarm self test");
+		KThread thread1 = new KThread(new PingAlarmTest(1000,myAlarm));
+		thread1.fork();
+
+		KThread thread2 = new KThread(new PingAlarmTest(500,myAlarm));
+		thread2.fork();
+
+		new PingAlarmTest(2000,myAlarm).run();
+
+
+		System.out.println("*** Exiting Alarm self test");
+	}
+		
+
 }
